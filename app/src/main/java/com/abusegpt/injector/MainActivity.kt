@@ -1,6 +1,9 @@
 package com.abusegpt.injector
 
 import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.*
@@ -9,22 +12,52 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var keyInput: EditText
+    private lateinit var injectBtn: Button
+    private lateinit var statusText: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        val userKey = "ZANI-XXXXXX" // Сюда пользователь вводит ключ
-        
-        CoroutineScope(Dispatchers.IO).launch {
-            // ВСТАВЬ СЮДА ПУБЛИЧНЫЙ URL ТВОЕГО ПРОЕКТА DISCLOUD
-            if (validateKey(userKey, "https://твой-проект.discloud.app")) {
-                if (ensureRootAndSelinux()) {
-                    injectCheat()
-                    withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Чит запущен", Toast.LENGTH_SHORT).show() }
+        setContentView(R.layout.activity_main)
+
+        keyInput = findViewById(R.id.keyInput)
+        injectBtn = findViewById(R.id.injectBtn)
+        statusText = findViewById(R.id.statusText)
+
+        injectBtn.setOnClickListener {
+            val userKey = keyInput.text.toString().trim()
+            if (userKey.isEmpty()) {
+                Toast.makeText(this, "Введите ключ!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            statusText.text = "Проверка ключа..."
+            injectBtn.isEnabled = false
+
+            CoroutineScope(Dispatchers.IO).launch {
+                // ВСТАВЬ СЮДА ПУБЛИЧНЫЙ URL ТВОЕГО ПРОЕКТА DISCLOUD
+                if (validateKey(userKey, "https://твой-проект.discloud.app")) {
+                    if (ensureRootAndSelinux()) {
+                        withContext(Dispatchers.Main) { statusText.text = "Внедрение..." }
+                        injectCheat()
+                        withContext(Dispatchers.Main) { 
+                            statusText.text = "Чит запущен! Открой Standoff 2."
+                            Toast.makeText(this@MainActivity, "Успешно", Toast.LENGTH_SHORT).show() 
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) { 
+                            statusText.text = "Ошибка: Нет Root прав"
+                            injectBtn.isEnabled = true 
+                        }
+                    }
                 } else {
-                    withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Нет root прав", Toast.LENGTH_SHORT).show() }
+                    withContext(Dispatchers.Main) { 
+                        statusText.text = "Неверный или просроченный ключ"
+                        injectBtn.isEnabled = true
+                        Toast.makeText(this@MainActivity, "Неверный ключ", Toast.LENGTH_SHORT).show() 
+                    }
                 }
-            } else {
-                withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Неверный ключ", Toast.LENGTH_SHORT).show() }
             }
         }
     }
