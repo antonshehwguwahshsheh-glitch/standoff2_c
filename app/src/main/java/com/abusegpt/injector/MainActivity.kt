@@ -1,8 +1,9 @@
 package com.abusegpt.injector
 
+import android.content.Context
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -13,7 +14,6 @@ import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var keyInput: EditText
     private lateinit var injectBtn: Button
     private lateinit var statusText: TextView
 
@@ -21,23 +21,24 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        keyInput = findViewById(R.id.keyInput)
         injectBtn = findViewById(R.id.injectBtn)
         statusText = findViewById(R.id.statusText)
 
+        // Получаем уникальный HWID устройства
+        val hwid = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+        
         injectBtn.setOnClickListener {
-            val userKey = keyInput.text.toString().trim()
-            if (userKey.isEmpty()) {
-                Toast.makeText(this, "Введите ключ!", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            statusText.text = "Проверка ключа..."
+            statusText.text = "Проверка HWID..."
             injectBtn.isEnabled = false
 
             CoroutineScope(Dispatchers.IO).launch {
-                // ВСТАВЬ СЮДА ПУБЛИЧНЫЙ URL ТВОЕГО ПРОЕКТА DISCLOUD
-                if (validateKey(userKey, "https://твой-проект.discloud.app")) {
+                // ВСТАВЬ СЮДА ПУБЛИЧНЫЙ URL ТВОЕГО ПРОЕКТА DISCLOUD (например, https://твой-сайт.discloud.app)
+                val serverUrl = "https://твой-проект.discloud.app" 
+                
+                // Отправляем HWID на сервер для привязки/проверки (используем ID 1, так как ключей больше нет)
+                val result = checkHwid(serverUrl, "1", hwid)
+                
+                if (result == "valid" || result == "registered") {
                     if (ensureRootAndSelinux()) {
                         withContext(Dispatchers.Main) { statusText.text = "Внедрение..." }
                         injectCheat()
@@ -53,28 +54,30 @@ class MainActivity : AppCompatActivity() {
                     }
                 } else {
                     withContext(Dispatchers.Main) { 
-                        statusText.text = "Неверный или просроченный ключ"
+                        statusText.text = "Ошибка: $result. Купи сброс в боте."
                         injectBtn.isEnabled = true
-                        Toast.makeText(this@MainActivity, "Неверный ключ", Toast.LENGTH_SHORT).show() 
                     }
                 }
             }
         }
     }
 
-    private fun validateKey(key: String, serverUrl: String): Boolean {
+    private fun checkHwid(serverUrl: String, userId: String, hwid: String): String {
         return try {
-            val url = URL("$serverUrl/api/validate")
+            val url = URL("$serverUrl/api/register")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("x-bot-token", "BOT_SECRET_123")
             conn.doOutput = true
             val writer = OutputStreamWriter(conn.outputStream)
-            writer.write("{\"key\":\"$key\"}")
+            writer.write("{\"userId\":\"$userId\",\"hwid\":\"$hwid\"}")
             writer.flush()
             val response = conn.inputStream.bufferedReader().readText()
-            response.contains("\"status\":\"valid\"")
-        } catch (e: Exception) { false }
+            if (response.contains("\"status\":\"valid\"")) "valid"
+            else if (response.contains("\"status\":\"registered\"")) "registered"
+            else "HWID не совпадает"
+        } catch (e: Exception) { "Ошибка сети" }
     }
 
     private fun ensureRootAndSelinux(): Boolean {
