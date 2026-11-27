@@ -8,13 +8,17 @@ const BOT_SECRET = 'BOT_SECRET_123';
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 
+// Клавиатура для обычных юзеров
 const userMenu = {
     reply_markup: {
-        keyboard: [[{ text: '👤 Профиль' }, { text: '🛒 Магазин' }]],
+        keyboard: [
+            [{ text: '👤 Профиль' }, { text: '🛒 Магазин' }]
+        ],
         resize_keyboard: true
     }
 };
 
+// Клавиатура для тебя (Админа)
 const adminMenu = {
     reply_markup: {
         keyboard: [
@@ -25,8 +29,11 @@ const adminMenu = {
     }
 };
 
+// Старт
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
+    
+    // Проверка на админа
     if (msg.from.id === ADMIN_ID) {
         bot.sendMessage(chatId, 'Привет, Админ! Выбери действие:', adminMenu);
     } else {
@@ -34,11 +41,13 @@ bot.onText(/\/start/, (msg) => {
     }
 });
 
+// Обработка нажатий на кнопки
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
     const userId = msg.from.id;
 
+    // Магазин
     if (text === '🛒 Магазин') {
         bot.sendMessage(chatId, 'Выбери тариф:', {
             reply_markup: {
@@ -52,6 +61,12 @@ bot.on('message', async (msg) => {
         });
     }
 
+    // Профиль
+    if (text === '👤 Профиль') {
+        bot.sendMessage(chatId, `Твой ID: ${userId}\nСтатус: Пользователь\nДля покупки ключа зайди в Магазин.`);
+    }
+
+    // Админка
     if (text === '⚙️ Админка' && userId === ADMIN_ID) {
         bot.sendMessage(chatId, 'Панель администратора:', {
             reply_markup: {
@@ -63,6 +78,7 @@ bot.on('message', async (msg) => {
     }
 });
 
+// Обработка inline-кнопок
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
@@ -88,6 +104,7 @@ bot.on('callback_query', async (query) => {
     }
 });
 
+// Оплата
 bot.on('successful_payment', async (msg) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
